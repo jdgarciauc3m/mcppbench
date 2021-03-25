@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
-#include <cstring>
+#include <string>
 #include <iostream>
 
 constexpr int NUM_RUNS = 100;
@@ -151,12 +151,12 @@ int main (int argc, char **argv)
     printf("Usage:\n\t%s <nthreads> <inputFile> <outputFile>\n", argv[0]);
     exit(1);
   }
-  nThreads = atoi(argv[1]);
-  char *inputFile = argv[2];
-  char *outputFile = argv[3];
+  nThreads = std::stoi(argv[1]);
+  std::string inputFile = argv[2];
+  std::string outputFile = argv[3];
 
   //Read input data from file
-  FILE * file = fopen(inputFile, "r");
+  FILE * file = fopen(inputFile.c_str(), "r");
   if(file == NULL) {
     std::cerr << "ERROR: Unable to open file `" << inputFile << "'.\n";
     exit(1);
@@ -228,7 +228,7 @@ int main (int argc, char **argv)
   compute_values<fptype>();
 
   //Write prices to output file
-  file = fopen(outputFile, "w");
+  file = fopen(outputFile.c_str(), "w");
   if(file == NULL) {
     std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
     exit(1);
