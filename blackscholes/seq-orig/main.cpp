@@ -20,18 +20,6 @@ MAIN_ENV
 #undef __thread
 #endif
 
-#ifdef ENABLE_TBB
-#include "tbb/blocked_range.h"
-#include "tbb/parallel_for.h"
-#include "tbb/task_scheduler_init.h"
-#include "tbb/tick_count.h"
-
-using namespace std;
-using namespace tbb;
-#endif //ENABLE_TBB
-
-
-
 //Precision to use for calculations
 #define fptype float
 
@@ -203,58 +191,12 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   return OptionPrice;
 }
 
-#ifdef ENABLE_TBB
-struct mainWork {
-  mainWork() {}
-  mainWork(mainWork &w, tbb::split) {}
-
-  void operator()(const tbb::blocked_range<int> &range) const {
-    fptype price;
-    int begin = range.begin();
-    int end = range.end();
-
-    for (int i=begin; i!=end; i++) {
-      /* Calling main function to calculate option value based on
-       * Black & Scholes's equation.
-       */
-
-      price = BlkSchlsEqEuroNoDiv( sptprice[i], strike[i],
-                                   rate[i], volatility[i], otime[i],
-                                   otype[i], 0);
-      prices[i] = price;
-
-#ifdef ERR_CHK
-      fptype priceDelta = data[i].DGrefval - price;
-      if( fabs(priceDelta) >= 1e-5 ){
-        fprintf(stderr,"Error on %d. Computed=%.5f, Ref=%.5f, Delta=%.5f\n",
-               i, price, data[i].DGrefval, priceDelta);
-        numError ++;
-      }
-#endif
-    }
-  }
-};
-
-#endif // ENABLE_TBB
 
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-#ifdef ENABLE_TBB
-int bs_thread(void *tid_ptr) {
-    int j;
-    tbb::affinity_partitioner a;
-
-    mainWork doall;
-    for (j=0; j<NUM_RUNS; j++) {
-      tbb::parallel_for(tbb::blocked_range<int>(0, numOptions), doall, a);
-    }
-
-    return 0;
-}
-#else // !ENABLE_TBB
 
 int bs_thread(void *tid_ptr) {
   int i, j;
@@ -287,7 +229,6 @@ int bs_thread(void *tid_ptr) {
 
   return 0;
 }
-#endif //ENABLE_TBB
 
 int main (int argc, char **argv)
 {
@@ -334,7 +275,7 @@ int main (int argc, char **argv)
     nThreads = numOptions;
   }
 
-#if !defined(ENABLE_THREADS) && !defined(ENABLE_TBB)
+#if !defined(ENABLE_THREADS)
   if(nThreads != 1) {
     printf("Error: <nthreads> must be 1 (serial version)\n");
     exit(1);
@@ -400,16 +341,9 @@ int main (int argc, char **argv)
     WAIT_FOR_END(nThreads);
     free(tids);
 #else //ENABLE_THREADS
-#ifdef ENABLE_TBB
-  tbb::task_scheduler_init init(nThreads);
-
-    int tid=0;
-    bs_thread(&tid);
-#else //ENABLE_TBB
   //serial version
   int tid=0;
   bs_thread(&tid);
-#endif //ENABLE_TBB
 #endif //ENABLE_THREADS
 
   //Write prices to output file
