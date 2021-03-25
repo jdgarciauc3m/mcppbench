@@ -12,10 +12,6 @@
 #include <math.h>
 #include <string.h>
 
-#ifdef ENABLE_PARSEC_HOOKS
-#include <hooks.h>
-#endif
-
 // Multi-threaded pthreads header
 #ifdef ENABLE_THREADS
 // Add the following line so that icc 9.0 is compatible with pthread lib.
@@ -330,9 +326,6 @@ int main (int argc, char **argv)
   printf("PARSEC Benchmark Suite\n");
   fflush(NULL);
 #endif //PARSEC_VERSION
-#ifdef ENABLE_PARSEC_HOOKS
-  __parsec_bench_begin(__parsec_blackscholes);
-#endif
 
   if (argc != 4)
   {
@@ -415,10 +408,6 @@ int main (int argc, char **argv)
 
   printf("Size of data: %d\n", numOptions * (sizeof(OptionData) + sizeof(int)));
 
-#ifdef ENABLE_PARSEC_HOOKS
-  __parsec_roi_begin();
-#endif
-
 #ifdef ENABLE_THREADS
   #ifdef WIN32
     HANDLE *threads;
@@ -465,10 +454,6 @@ int main (int argc, char **argv)
 #endif //ENABLE_OPENMP
 #endif //ENABLE_THREADS
 
-#ifdef ENABLE_PARSEC_HOOKS
-  __parsec_roi_end();
-#endif
-
   //Write prices to output file
   file = fopen(outputFile, "w");
   if(file == NULL) {
@@ -500,10 +485,6 @@ int main (int argc, char **argv)
 #endif
   free(data);
   free(prices);
-
-#ifdef ENABLE_PARSEC_HOOKS
-  __parsec_bench_end();
-#endif
 
   return 0;
 }
