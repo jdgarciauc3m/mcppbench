@@ -10,7 +10,7 @@
 //Precision to use for calculations
 #define fptype float
 
-#define NUM_RUNS 100
+constexpr int NUM_RUNS = 100;
 
 typedef struct OptionData_ {
   fptype s;          // spot price
@@ -44,7 +44,8 @@ int nThreads;
 ////////////////////////////////////////////////////////////////////////////////
 // Cumulative Normal Distribution Function
 // See Hull, Section 11.8, P.243-244
-#define inv_sqrt_2xPI 0.39894228040143270286
+template <typename T>
+constexpr T inv_sqrt_2xPI = 0.39894228040143270286;
 
 fptype CNDF ( fptype InputX )
 {
@@ -72,7 +73,7 @@ fptype CNDF ( fptype InputX )
   // Compute NPrimeX term common to both four & six decimal accuracy calcs
   expValues = std::exp(-0.5f * InputX * InputX);
   xNPrimeofX = expValues;
-  xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
+  xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI<fptype>;
 
   xK2 = 0.2316419 * xInput;
   xK2 = 1.0 + xK2;
@@ -281,8 +282,8 @@ int main (int argc, char **argv)
   printf("Num of Options: %d\n", numOptions);
   printf("Num of Runs: %d\n", NUM_RUNS);
 
-#define PAD 256
-#define LINESIZE 64
+  constexpr int PAD = 256;
+  constexpr int LINESIZE = 64;
 
   buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
   sptprice = (fptype *) (((unsigned long long)buffer + PAD) & ~(LINESIZE - 1));
