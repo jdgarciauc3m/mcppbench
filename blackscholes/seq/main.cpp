@@ -141,13 +141,7 @@ void compute_values() {
 
 int main (int argc, char **argv)
 {
-  FILE *file;
-  int i;
-  int loopnum;
   using fptype = float;
-  fptype * buffer;
-  int * buffer2;
-  int rv;
 
   printf("PARSEC Benchmark Suite\n");
   fflush(NULL);
@@ -162,12 +156,12 @@ int main (int argc, char **argv)
   char *outputFile = argv[3];
 
   //Read input data from file
-  file = fopen(inputFile, "r");
+  FILE * file = fopen(inputFile, "r");
   if(file == NULL) {
     printf("ERROR: Unable to open file `%s'.\n", inputFile);
     exit(1);
   }
-  rv = fscanf(file, "%i", &numOptions);
+  int rv = fscanf(file, "%i", &numOptions);
   if(rv != 1) {
     printf("ERROR: Unable to read from file `%s'.\n", inputFile);
     fclose(file);
@@ -186,7 +180,7 @@ int main (int argc, char **argv)
   // alloc spaces for the option data
   data<fptype> = (OptionData<fptype>*)malloc(numOptions*sizeof(OptionData<fptype>));
   prices<fptype> = (fptype*)malloc(numOptions*sizeof(fptype));
-  for ( loopnum = 0; loopnum < numOptions; ++ loopnum )
+  for (int loopnum = 0; loopnum < numOptions; ++ loopnum )
   {
     rv = fscanf(file, "%f %f %f %f %f %f %c %f %f", &data<fptype>[loopnum].s, &data<fptype>[loopnum].strike, &data<fptype>[loopnum].r, &data<fptype>[loopnum].divq, &data<fptype>[loopnum].v, &data<fptype>[loopnum].t, &data<fptype>[loopnum].OptionType, &data<fptype>[loopnum].divs, &data<fptype>[loopnum].DGrefval);
     if(rv != 9) {
@@ -207,17 +201,17 @@ int main (int argc, char **argv)
   constexpr int PAD = 256;
   constexpr int LINESIZE = 64;
 
-  buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
+  fptype * buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
   sptprice<fptype> = (fptype *) (((unsigned long long)buffer + PAD) & ~(LINESIZE - 1));
   strike<fptype> = sptprice<fptype> + numOptions;
   rate<fptype> = strike<fptype> + numOptions;
   volatility<fptype> = rate<fptype> + numOptions;
   otime<fptype> = volatility<fptype> + numOptions;
 
-  buffer2 = (int *) malloc(numOptions * sizeof(fptype) + PAD);
+  int * buffer2 = (int *) malloc(numOptions * sizeof(fptype) + PAD);
   otype = (int *) (((unsigned long long)buffer2 + PAD) & ~(LINESIZE - 1));
 
-  for (i=0; i<numOptions; i++) {
+  for (int i=0; i<numOptions; i++) {
     otype[i]      = (data<fptype>[i].OptionType == 'P') ? 1 : 0;
     sptprice<fptype>[i]   = data<fptype>[i].s;
     strike<fptype>[i]     = data<fptype>[i].strike;
@@ -244,7 +238,7 @@ int main (int argc, char **argv)
     fclose(file);
     exit(1);
   }
-  for(i=0; i<numOptions; i++) {
+  for(int i=0; i<numOptions; i++) {
     rv = fprintf(file, "%.18f\n", prices<fptype>[i]);
     if(rv < 0) {
       printf("ERROR: Unable to write to file `%s'.\n", outputFile);
