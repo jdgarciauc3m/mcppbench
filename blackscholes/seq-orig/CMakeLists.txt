@@ -1,0 +1,1 @@
+add_executable(blackscholes-seq main.cpp)
