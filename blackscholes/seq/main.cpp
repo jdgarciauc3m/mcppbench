@@ -14,6 +14,7 @@
 #include <cmath>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 constexpr int NUM_RUNS = 100;
 
@@ -156,15 +157,14 @@ int main (int argc, char **argv)
   std::string outputFile = argv[3];
 
   //Read input data from file
-  FILE * file = fopen(inputFile.c_str(), "r");
-  if(file == NULL) {
+  std::ifstream input{inputFile};
+  if(!input) {
     std::cerr << "ERROR: Unable to open file `" << inputFile << "'.\n";
     exit(1);
   }
-  int rv = fscanf(file, "%i", &numOptions);
-  if(rv != 1) {
+  input >> numOptions;
+  if(!input) {
     std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
-    fclose(file);
     exit(1);
   }
   if(nThreads > numOptions) {
@@ -183,17 +183,19 @@ int main (int argc, char **argv)
   prices<fptype> = (fptype*)malloc(numOptions*sizeof(fptype));
   for (int loopnum = 0; loopnum < numOptions; ++ loopnum )
   {
-    rv = fscanf(file, "%f %f %f %f %f %f %c %f %f", &data<fptype>[loopnum].s, &data<fptype>[loopnum].strike, &data<fptype>[loopnum].r, &data<fptype>[loopnum].divq, &data<fptype>[loopnum].v, &data<fptype>[loopnum].t, &data<fptype>[loopnum].OptionType, &data<fptype>[loopnum].divs, &data<fptype>[loopnum].DGrefval);
-    if(rv != 9) {
+    input >> data<fptype>[loopnum].s
+          >> data<fptype>[loopnum].strike
+          >> data<fptype>[loopnum].r
+          >> data<fptype>[loopnum].divq
+          >> data<fptype>[loopnum].v
+          >> data<fptype>[loopnum].t
+          >> data<fptype>[loopnum].OptionType
+          >> data<fptype>[loopnum].divs
+          >> data<fptype>[loopnum].DGrefval;
+    if(!input) {
       std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
-      fclose(file);
       exit(1);
     }
-  }
-  rv = fclose(file);
-  if(rv != 0) {
-    std::cerr << "ERROR: Unable to close file `" << inputFile << "'.\n";
-    exit(1);
   }
 
   std::cout << "Num of Options: " << numOptions << "\n";
@@ -221,36 +223,33 @@ int main (int argc, char **argv)
     otime<fptype>[i]      = data<fptype>[i].t;
   }
 
-  printf("Size of data: %d\n", numOptions * (sizeof(OptionData<fptype>) + sizeof(int)));
+  std::cout << "Size of data: "
+    << numOptions * (sizeof(OptionData<fptype>) + sizeof(int))
+    << "\n";
 
   //serial version
   int tid=0;
   compute_values<fptype>();
 
   //Write prices to output file
-  file = fopen(outputFile.c_str(), "w");
-  if(file == NULL) {
+  std::ofstream output{outputFile};
+  if(!output) {
     std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
     exit(1);
   }
-  rv = fprintf(file, "%i\n", numOptions);
-  if(rv < 0) {
+  output << numOptions << "\n";
+  if(!output) {
     std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
-    fclose(file);
     exit(1);
   }
+  output.precision(18);
+  output.setf(std::ios::fixed );
   for(int i=0; i<numOptions; i++) {
-    rv = fprintf(file, "%.18f\n", prices<fptype>[i]);
-    if(rv < 0) {
+    output << prices<fptype>[i] << "\n";
+    if(!output) {
       std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
-      fclose(file);
       exit(1);
     }
-  }
-  rv = fclose(file);
-  if(rv != 0) {
-    std::cerr << "ERROR: Unable to close file `" << outputFile << "'.\n";
-    exit(1);
   }
 
   free(data<fptype>);
