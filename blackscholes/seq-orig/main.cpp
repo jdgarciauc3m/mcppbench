@@ -12,14 +12,6 @@
 #include <math.h>
 #include <string.h>
 
-// Multi-threaded pthreads header
-#ifdef ENABLE_THREADS
-// Add the following line so that icc 9.0 is compatible with pthread lib.
-#define __thread __threadp
-MAIN_ENV
-#undef __thread
-#endif
-
 //Precision to use for calculations
 #define fptype float
 
@@ -275,12 +267,10 @@ int main (int argc, char **argv)
     nThreads = numOptions;
   }
 
-#if !defined(ENABLE_THREADS)
   if(nThreads != 1) {
     printf("Error: <nthreads> must be 1 (serial version)\n");
     exit(1);
   }
-#endif
 
   // alloc spaces for the option data
   data = (OptionData*)malloc(numOptions*sizeof(OptionData));
@@ -300,9 +290,6 @@ int main (int argc, char **argv)
     exit(1);
   }
 
-#ifdef ENABLE_THREADS
-  MAIN_INITENV(,8000000,nThreads);
-#endif
   printf("Num of Options: %d\n", numOptions);
   printf("Num of Runs: %d\n", NUM_RUNS);
 
@@ -330,21 +317,9 @@ int main (int argc, char **argv)
 
   printf("Size of data: %d\n", numOptions * (sizeof(OptionData) + sizeof(int)));
 
-#ifdef ENABLE_THREADS
-    int *tids;
-    tids = (int *) malloc (nThreads * sizeof(int));
-
-    for(i=0; i<nThreads; i++) {
-        tids[i]=i;
-        CREATE_WITH_ARG(bs_thread, &tids[i]);
-    }
-    WAIT_FOR_END(nThreads);
-    free(tids);
-#else //ENABLE_THREADS
   //serial version
   int tid=0;
   bs_thread(&tid);
-#endif //ENABLE_THREADS
 
   //Write prices to output file
   file = fopen(outputFile, "w");
