@@ -70,7 +70,7 @@ fptype CNDF ( fptype InputX )
   xInput = InputX;
 
   // Compute NPrimeX term common to both four & six decimal accuracy calcs
-  expValues = exp(-0.5f * InputX * InputX);
+  expValues = std::exp(-0.5f * InputX * InputX);
   xNPrimeofX = expValues;
   xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
 
@@ -142,9 +142,9 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   xVolatility = volatility;
 
   xTime = time;
-  xSqrtTime = sqrt(xTime);
+  xSqrtTime = std::sqrt(xTime);
 
-  logValues = log( sptprice / strike );
+  logValues = std::log( sptprice / strike );
 
   xLogTerm = logValues;
 
