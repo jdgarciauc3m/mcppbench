@@ -2,10 +2,10 @@
 // Modernized by J. Daniel Garcia 2021
 // Universidad Carlos III de Madrid
 
-#include <cstdio>
-#include <cstdlib>
-#include <cmath>
-#include <cstring>
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <string.h>
 
 //Precision to use for calculations
 #define fptype float
