@@ -2,10 +2,10 @@
 // Modernized by J. Daniel Garcia 2021
 // Universidad Carlos III de Madrid
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
 
 //Precision to use for calculations
 #define fptype float
@@ -70,7 +70,7 @@ fptype CNDF ( fptype InputX )
   xInput = InputX;
 
   // Compute NPrimeX term common to both four & six decimal accuracy calcs
-  expValues = exp(-0.5f * InputX * InputX);
+  expValues = std::exp(-0.5f * InputX * InputX);
   xNPrimeofX = expValues;
   xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
 
@@ -144,7 +144,7 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   xTime = time;
   xSqrtTime = sqrt(xTime);
 
-  logValues = log( sptprice / strike );
+  logValues = std::log( sptprice / strike );
 
   xLogTerm = logValues;
 
@@ -166,7 +166,7 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   NofXd1 = CNDF( d1 );
   NofXd2 = CNDF( d2 );
 
-  FutureValueX = strike * ( exp( -(rate)*(time) ) );
+  FutureValueX = strike * ( std::exp(-(rate)*(time) ) );
   if (otype == 0) {
     OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
   } else {
