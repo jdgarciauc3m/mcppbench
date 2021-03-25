@@ -7,12 +7,10 @@
 #include <cmath>
 #include <cstring>
 
-//Precision to use for calculations
-#define fptype float
-
 constexpr int NUM_RUNS = 100;
 
-typedef struct OptionData_ {
+template <typename fptype>
+struct OptionData {
   fptype s;          // spot price
   fptype strike;     // strike price
   fptype r;          // risk-free interest rate
@@ -23,18 +21,20 @@ typedef struct OptionData_ {
   char OptionType;   // Option type.  "P"=PUT, "C"=CALL
   fptype divs;       // dividend vals (not used in this test)
   fptype DGrefval;   // DerivaGem Reference Value
-} OptionData;
+};
 
-OptionData *data;
-fptype *prices;
+template <typename fptype>
+OptionData<fptype> *data;
+
+template <typename fptype> fptype *prices;
 int numOptions;
 
 int    * otype;
-fptype * sptprice;
-fptype * strike;
-fptype * rate;
-fptype * volatility;
-fptype * otime;
+template <typename fptype> fptype * sptprice;
+template <typename fptype> fptype * strike;
+template <typename fptype> fptype * rate;
+template <typename fptype> fptype * volatility;
+template <typename fptype> fptype * otime;
 int numError = 0;
 int nThreads;
 
@@ -47,6 +47,7 @@ int nThreads;
 template <typename T>
 constexpr T inv_sqrt_2xPI = 0.39894228040143270286;
 
+template <typename fptype>
 fptype CNDF ( fptype InputX )
 {
   int sign;
@@ -109,6 +110,7 @@ fptype CNDF ( fptype InputX )
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
+template <typename fptype>
 fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
     fptype strike, fptype rate, fptype volatility,
     fptype time, int otype, float timet )
@@ -185,7 +187,7 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-
+template <typename fptype>
 int bs_thread(void *tid_ptr) {
   int i, j;
   fptype price;
@@ -199,10 +201,10 @@ int bs_thread(void *tid_ptr) {
       /* Calling main function to calculate option value based on
        * Black & Scholes's equation.
        */
-      price = BlkSchlsEqEuroNoDiv( sptprice[i], strike[i],
-          rate[i], volatility[i], otime[i],
+      price = BlkSchlsEqEuroNoDiv( sptprice<fptype>[i], strike<fptype>[i],
+          rate<fptype>[i], volatility<fptype>[i], otime<fptype>[i],
           otype[i], 0);
-      prices[i] = price;
+      prices<fptype>[i] = price;
 
 #ifdef ERR_CHK
       priceDelta = data[i].DGrefval - price;
@@ -223,6 +225,7 @@ int main (int argc, char **argv)
   FILE *file;
   int i;
   int loopnum;
+  using fptype = float;
   fptype * buffer;
   int * buffer2;
   int rv;
@@ -262,11 +265,11 @@ int main (int argc, char **argv)
   }
 
   // alloc spaces for the option data
-  data = (OptionData*)malloc(numOptions*sizeof(OptionData));
-  prices = (fptype*)malloc(numOptions*sizeof(fptype));
+  data<fptype> = (OptionData<fptype>*)malloc(numOptions*sizeof(OptionData<fptype>));
+  prices<fptype> = (fptype*)malloc(numOptions*sizeof(fptype));
   for ( loopnum = 0; loopnum < numOptions; ++ loopnum )
   {
-    rv = fscanf(file, "%f %f %f %f %f %f %c %f %f", &data[loopnum].s, &data[loopnum].strike, &data[loopnum].r, &data[loopnum].divq, &data[loopnum].v, &data[loopnum].t, &data[loopnum].OptionType, &data[loopnum].divs, &data[loopnum].DGrefval);
+    rv = fscanf(file, "%f %f %f %f %f %f %c %f %f", &data<fptype>[loopnum].s, &data<fptype>[loopnum].strike, &data<fptype>[loopnum].r, &data<fptype>[loopnum].divq, &data<fptype>[loopnum].v, &data<fptype>[loopnum].t, &data<fptype>[loopnum].OptionType, &data<fptype>[loopnum].divs, &data<fptype>[loopnum].DGrefval);
     if(rv != 9) {
       printf("ERROR: Unable to read from file `%s'.\n", inputFile);
       fclose(file);
@@ -286,29 +289,29 @@ int main (int argc, char **argv)
   constexpr int LINESIZE = 64;
 
   buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
-  sptprice = (fptype *) (((unsigned long long)buffer + PAD) & ~(LINESIZE - 1));
-  strike = sptprice + numOptions;
-  rate = strike + numOptions;
-  volatility = rate + numOptions;
-  otime = volatility + numOptions;
+  sptprice<fptype> = (fptype *) (((unsigned long long)buffer + PAD) & ~(LINESIZE - 1));
+  strike<fptype> = sptprice<fptype> + numOptions;
+  rate<fptype> = strike<fptype> + numOptions;
+  volatility<fptype> = rate<fptype> + numOptions;
+  otime<fptype> = volatility<fptype> + numOptions;
 
   buffer2 = (int *) malloc(numOptions * sizeof(fptype) + PAD);
   otype = (int *) (((unsigned long long)buffer2 + PAD) & ~(LINESIZE - 1));
 
   for (i=0; i<numOptions; i++) {
-    otype[i]      = (data[i].OptionType == 'P') ? 1 : 0;
-    sptprice[i]   = data[i].s;
-    strike[i]     = data[i].strike;
-    rate[i]       = data[i].r;
-    volatility[i] = data[i].v;
-    otime[i]      = data[i].t;
+    otype[i]      = (data<fptype>[i].OptionType == 'P') ? 1 : 0;
+    sptprice<fptype>[i]   = data<fptype>[i].s;
+    strike<fptype>[i]     = data<fptype>[i].strike;
+    rate<fptype>[i]       = data<fptype>[i].r;
+    volatility<fptype>[i] = data<fptype>[i].v;
+    otime<fptype>[i]      = data<fptype>[i].t;
   }
 
-  printf("Size of data: %d\n", numOptions * (sizeof(OptionData) + sizeof(int)));
+  printf("Size of data: %d\n", numOptions * (sizeof(OptionData<fptype>) + sizeof(int)));
 
   //serial version
   int tid=0;
-  bs_thread(&tid);
+  bs_thread<fptype>(&tid);
 
   //Write prices to output file
   file = fopen(outputFile, "w");
@@ -323,7 +326,7 @@ int main (int argc, char **argv)
     exit(1);
   }
   for(i=0; i<numOptions; i++) {
-    rv = fprintf(file, "%.18f\n", prices[i]);
+    rv = fprintf(file, "%.18f\n", prices<fptype>[i]);
     if(rv < 0) {
       printf("ERROR: Unable to write to file `%s'.\n", outputFile);
       fclose(file);
@@ -339,8 +342,8 @@ int main (int argc, char **argv)
 #ifdef ERR_CHK
   printf("Num Errors: %d\n", numError);
 #endif
-  free(data);
-  free(prices);
+  free(data<fptype>);
+  free(prices<fptype>);
 
   return 0;
 }
