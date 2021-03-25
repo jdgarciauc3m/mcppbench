@@ -102,7 +102,7 @@ Number cdf_normal(Number x)
 template <typename fptype>
 fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
     fptype strike, fptype rate, fptype volatility,
-    fptype time, int otype, float timet )
+    fptype time, int option_type)
 {
   fptype OptionPrice;
 
@@ -159,7 +159,7 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   NofXd2 = cdf_normal(d2);
 
   FutureValueX = strike * ( std::exp(-(rate)*(time) ) );
-  if (otype == 0) {
+  if (option_type == 0) {
     OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
   } else {
     NegNofXd1 = (1.0 - NofXd1);
@@ -192,7 +192,7 @@ int bs_thread(void *tid_ptr) {
        */
       price = BlkSchlsEqEuroNoDiv( sptprice<fptype>[i], strike<fptype>[i],
           rate<fptype>[i], volatility<fptype>[i], otime<fptype>[i],
-          otype[i], 0);
+          otype[i]);
       prices<fptype>[i] = price;
 
 #ifdef ERR_CHK
