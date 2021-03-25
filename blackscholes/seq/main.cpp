@@ -95,79 +95,27 @@ Number cdf_normal(Number x)
   }
 }
 
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-template <typename fptype>
-fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
-    fptype strike, fptype rate, fptype volatility,
-    fptype time, int option_type)
+template <typename Number>
+Number BlkSchlsEqEuroNoDiv(Number spot_price,
+    Number strike, Number rate, Number volatility,
+    Number time, int option_type)
 {
-  fptype OptionPrice;
+  Number xPowerTerm = volatility * volatility / 2;
+  Number d1 = (rate + xPowerTerm) * time + std::log(spot_price / strike);
 
-  // local private working variables for the calculation
-  fptype xStockPrice;
-  fptype xStrikePrice;
-  fptype xRiskFreeRate;
-  fptype xVolatility;
-  fptype xTime;
-  fptype xSqrtTime;
+  Number den = volatility * std::sqrt(time);
+  d1 = d1 / den;
+  Number d2 = d1 - den;
 
-  fptype logValues;
-  fptype xLogTerm;
-  fptype xD1;
-  fptype xD2;
-  fptype xPowerTerm;
-  fptype xDen;
-  fptype d1;
-  fptype d2;
-  fptype FutureValueX;
-  fptype NofXd1;
-  fptype NofXd2;
-  fptype NegNofXd1;
-  fptype NegNofXd2;
+  Number NofXd1 = cdf_normal(d1);
+  Number NofXd2 = cdf_normal(d2);
 
-  xStockPrice = sptprice;
-  xStrikePrice = strike;
-  xRiskFreeRate = rate;
-  xVolatility = volatility;
-
-  xTime = time;
-  xSqrtTime = sqrt(xTime);
-
-  logValues = std::log( sptprice / strike );
-
-  xLogTerm = logValues;
-
-
-  xPowerTerm = xVolatility * xVolatility;
-  xPowerTerm = xPowerTerm * 0.5;
-
-  xD1 = xRiskFreeRate + xPowerTerm;
-  xD1 = xD1 * xTime;
-  xD1 = xD1 + xLogTerm;
-
-  xDen = xVolatility * xSqrtTime;
-  xD1 = xD1 / xDen;
-  xD2 = xD1 -  xDen;
-
-  d1 = xD1;
-  d2 = xD2;
-
-  NofXd1 = cdf_normal(d1);
-  NofXd2 = cdf_normal(d2);
-
-  FutureValueX = strike * ( std::exp(-(rate)*(time) ) );
+  Number FutureValueX = strike * std::exp(-(rate)*(time));
   if (option_type == 0) {
-    OptionPrice = (sptprice * NofXd1) - (FutureValueX * NofXd2);
+    return spot_price * NofXd1 - FutureValueX * NofXd2;
   } else {
-    NegNofXd1 = (1.0 - NofXd1);
-    NegNofXd2 = (1.0 - NofXd2);
-    OptionPrice = (FutureValueX * NegNofXd2) - (sptprice * NegNofXd1);
+    return FutureValueX * (1 - NofXd2) - spot_price * (1 - NofXd1);
   }
-
-  return OptionPrice;
 }
 
 
