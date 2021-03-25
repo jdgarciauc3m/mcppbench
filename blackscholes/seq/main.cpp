@@ -124,37 +124,19 @@ Number BlkSchlsEqEuroNoDiv(Number spot_price,
 //////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////
 
-template <typename fptype>
-int bs_thread(void *tid_ptr) {
-  int i, j;
-  fptype price;
-  fptype priceDelta;
-  int tid = *(int *)tid_ptr;
-  int start = tid * (numOptions / nThreads);
-  int end = start + (numOptions / nThreads);
-
-  for (j=0; j<NUM_RUNS; j++) {
-    for (i=start; i<end; i++) {
+template <typename Number>
+void compute_values() {
+  for (int j=0; j<NUM_RUNS; j++) {
+    for (int i=0; i<numOptions; i++) {
       /* Calling main function to calculate option value based on
        * Black & Scholes's equation.
        */
-      price = BlkSchlsEqEuroNoDiv( sptprice<fptype>[i], strike<fptype>[i],
-          rate<fptype>[i], volatility<fptype>[i], otime<fptype>[i],
+      Number price = BlkSchlsEqEuroNoDiv(sptprice<Number>[i], strike<Number>[i],
+          rate<Number>[i], volatility<Number>[i], otime<Number>[i],
           otype[i]);
-      prices<fptype>[i] = price;
-
-#ifdef ERR_CHK
-      priceDelta = data[i].DGrefval - price;
-            if( fabs(priceDelta) >= 1e-4 ){
-                printf("Error on %d. Computed=%.5f, Ref=%.5f, Delta=%.5f\n",
-                       i, price, data[i].DGrefval, priceDelta);
-                numError ++;
-            }
-#endif
+      prices<Number>[i] = price;
     }
   }
-
-  return 0;
 }
 
 int main (int argc, char **argv)
@@ -248,7 +230,7 @@ int main (int argc, char **argv)
 
   //serial version
   int tid=0;
-  bs_thread<fptype>(&tid);
+  compute_values<fptype>();
 
   //Write prices to output file
   file = fopen(outputFile, "w");
