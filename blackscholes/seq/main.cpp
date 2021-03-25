@@ -1,6 +1,13 @@
 // Copyright (c) 2007 Intel Corp.
 // Modernized by J. Daniel Garcia 2021
 // Universidad Carlos III de Madrid
+//
+// Black-Scholes
+// Analytical method for calculating European Options
+//
+//
+// Reference Source: Options, Futures, and Other Derivatives, 3rd Edition, Prentice
+// Hall, John C. Hull,
 
 #include <cstdio>
 #include <cstdlib>
@@ -47,63 +54,45 @@ int nThreads;
 template <typename T>
 constexpr T inv_sqrt_2xPI = 0.39894228040143270286;
 
-template <typename fptype>
-fptype CNDF ( fptype InputX )
+template<typename Number>
+Number cdf_normal(Number x)
 {
+  // Check for negative value of x
   int sign;
-
-  fptype OutputX;
-  fptype xInput;
-  fptype xNPrimeofX;
-  fptype expValues;
-  fptype xK2;
-  fptype xK2_2, xK2_3;
-  fptype xK2_4, xK2_5;
-  fptype xLocal, xLocal_1;
-  fptype xLocal_2, xLocal_3;
-
-  // Check for negative value of InputX
-  if (InputX < 0.0) {
-    InputX = -InputX;
+  if (x < 0.0) {
+    x = -x;
     sign = 1;
-  } else
+  }
+  else {
     sign = 0;
+  }
 
-  xInput = InputX;
+  Number xK2 = 1 / (1 + Number(0.2316419) * x);
+  Number xK2_2 = xK2 * xK2;
+  Number xK2_3 = xK2_2 * xK2;
+  Number xK2_4 = xK2_3 * xK2;
+  Number xK2_5 = xK2_4 * xK2;
 
-  // Compute NPrimeX term common to both four & six decimal accuracy calcs
-  expValues = std::exp(-0.5f * InputX * InputX);
-  xNPrimeofX = expValues;
-  xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI<fptype>;
-
-  xK2 = 0.2316419 * xInput;
-  xK2 = 1.0 + xK2;
-  xK2 = 1.0 / xK2;
-  xK2_2 = xK2 * xK2;
-  xK2_3 = xK2_2 * xK2;
-  xK2_4 = xK2_3 * xK2;
-  xK2_5 = xK2_4 * xK2;
-
-  xLocal_1 = xK2 * 0.319381530;
-  xLocal_2 = xK2_2 * (-0.356563782);
-  xLocal_3 = xK2_3 * 1.781477937;
+  Number xLocal_1 = xK2 * 0.319381530;
+  Number xLocal_2 = xK2_2 * (-0.356563782);
+  Number xLocal_3 = xK2_3 * 1.781477937;
   xLocal_2 = xLocal_2 + xLocal_3;
   xLocal_3 = xK2_4 * (-1.821255978);
   xLocal_2 = xLocal_2 + xLocal_3;
   xLocal_3 = xK2_5 * 1.330274429;
   xLocal_2 = xLocal_2 + xLocal_3;
-
   xLocal_1 = xLocal_2 + xLocal_1;
-  xLocal   = xLocal_1 * xNPrimeofX;
-  xLocal   = 1.0 - xLocal;
 
-  OutputX  = xLocal;
+  // Compute NPrimeX term common to both four & six decimal accuracy calcs
+  Number xNPrimeofX = std::exp(-0.5f * x * x) * inv_sqrt_2xPI<Number>;
+  Number xLocal = 1.0 - xLocal_1 * xNPrimeofX;
 
   if (sign) {
-    OutputX = 1.0 - OutputX;
+    return 1.0 - xLocal;
   }
-
-  return OutputX;
+  else {
+    return xLocal;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
@@ -166,8 +155,8 @@ fptype BlkSchlsEqEuroNoDiv( fptype sptprice,
   d1 = xD1;
   d2 = xD2;
 
-  NofXd1 = CNDF( d1 );
-  NofXd2 = CNDF( d2 );
+  NofXd1 = cdf_normal(d1);
+  NofXd2 = cdf_normal(d2);
 
   FutureValueX = strike * ( std::exp(-(rate)*(time) ) );
   if (otype == 0) {
