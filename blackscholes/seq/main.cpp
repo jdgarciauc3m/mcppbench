@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 
 constexpr int NUM_RUNS = 100;
 
@@ -143,8 +144,7 @@ int main (int argc, char **argv)
 {
   using fptype = float;
 
-  printf("PARSEC Benchmark Suite\n");
-  fflush(NULL);
+  std::cout << "PARSEC Benchmark Suite" << std::endl;
 
   if (argc != 4)
   {
@@ -158,22 +158,23 @@ int main (int argc, char **argv)
   //Read input data from file
   FILE * file = fopen(inputFile, "r");
   if(file == NULL) {
-    printf("ERROR: Unable to open file `%s'.\n", inputFile);
+    std::cerr << "ERROR: Unable to open file `" << inputFile << "'.\n";
     exit(1);
   }
   int rv = fscanf(file, "%i", &numOptions);
   if(rv != 1) {
-    printf("ERROR: Unable to read from file `%s'.\n", inputFile);
+    std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
     fclose(file);
     exit(1);
   }
   if(nThreads > numOptions) {
-    printf("WARNING: Not enough work, reducing number of threads to match number of options.\n");
+    std::cerr << "WARNING: Not enough work,"
+      << "reducing number of threads to match number of options.\n";
     nThreads = numOptions;
   }
 
   if(nThreads != 1) {
-    printf("Error: <nthreads> must be 1 (serial version)\n");
+    std::cerr << "Error: <nthreads> must be 1 (serial version)\n";
     exit(1);
   }
 
@@ -184,19 +185,19 @@ int main (int argc, char **argv)
   {
     rv = fscanf(file, "%f %f %f %f %f %f %c %f %f", &data<fptype>[loopnum].s, &data<fptype>[loopnum].strike, &data<fptype>[loopnum].r, &data<fptype>[loopnum].divq, &data<fptype>[loopnum].v, &data<fptype>[loopnum].t, &data<fptype>[loopnum].OptionType, &data<fptype>[loopnum].divs, &data<fptype>[loopnum].DGrefval);
     if(rv != 9) {
-      printf("ERROR: Unable to read from file `%s'.\n", inputFile);
+      std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
       fclose(file);
       exit(1);
     }
   }
   rv = fclose(file);
   if(rv != 0) {
-    printf("ERROR: Unable to close file `%s'.\n", inputFile);
+    std::cerr << "ERROR: Unable to close file `" << inputFile << "'.\n";
     exit(1);
   }
 
-  printf("Num of Options: %d\n", numOptions);
-  printf("Num of Runs: %d\n", NUM_RUNS);
+  std::cout << "Num of Options: " << numOptions << "\n";
+  std::cout << "Num of Runs: " << NUM_RUNS << "\n";
 
   constexpr int PAD = 256;
   constexpr int LINESIZE = 64;
@@ -229,32 +230,29 @@ int main (int argc, char **argv)
   //Write prices to output file
   file = fopen(outputFile, "w");
   if(file == NULL) {
-    printf("ERROR: Unable to open file `%s'.\n", outputFile);
+    std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
     exit(1);
   }
   rv = fprintf(file, "%i\n", numOptions);
   if(rv < 0) {
-    printf("ERROR: Unable to write to file `%s'.\n", outputFile);
+    std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
     fclose(file);
     exit(1);
   }
   for(int i=0; i<numOptions; i++) {
     rv = fprintf(file, "%.18f\n", prices<fptype>[i]);
     if(rv < 0) {
-      printf("ERROR: Unable to write to file `%s'.\n", outputFile);
+      std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
       fclose(file);
       exit(1);
     }
   }
   rv = fclose(file);
   if(rv != 0) {
-    printf("ERROR: Unable to close file `%s'.\n", outputFile);
+    std::cerr << "ERROR: Unable to close file `" << outputFile << "'.\n";
     exit(1);
   }
 
-#ifdef ERR_CHK
-  printf("Num Errors: %d\n", numError);
-#endif
   free(data<fptype>);
   free(prices<fptype>);
 
