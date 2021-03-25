@@ -20,11 +20,6 @@ MAIN_ENV
 #undef __thread
 #endif
 
-// Multi-threaded OpenMP header
-#ifdef ENABLE_OPENMP
-#include <omp.h>
-#endif
-
 #ifdef ENABLE_TBB
 #include "tbb/blocked_range.h"
 #include "tbb/parallel_for.h"
@@ -35,12 +30,7 @@ using namespace std;
 using namespace tbb;
 #endif //ENABLE_TBB
 
-// Multi-threaded header for Windows
-#ifdef WIN32
-#pragma warning(disable : 4305)
-#pragma warning(disable : 4244)
-#include <windows.h>
-#endif
+
 
 //Precision to use for calculations
 #define fptype float
@@ -266,11 +256,7 @@ int bs_thread(void *tid_ptr) {
 }
 #else // !ENABLE_TBB
 
-#ifdef WIN32
-DWORD WINAPI bs_thread(LPVOID tid_ptr){
-#else
 int bs_thread(void *tid_ptr) {
-#endif
   int i, j;
   fptype price;
   fptype priceDelta;
@@ -279,12 +265,7 @@ int bs_thread(void *tid_ptr) {
   int end = start + (numOptions / nThreads);
 
   for (j=0; j<NUM_RUNS; j++) {
-#ifdef ENABLE_OPENMP
-    #pragma omp parallel for private(i, price, priceDelta)
-        for (i=0; i<numOptions; i++) {
-#else  //ENABLE_OPENMP
     for (i=start; i<end; i++) {
-#endif //ENABLE_OPENMP
       /* Calling main function to calculate option value based on
        * Black & Scholes's equation.
        */
@@ -353,7 +334,7 @@ int main (int argc, char **argv)
     nThreads = numOptions;
   }
 
-#if !defined(ENABLE_THREADS) && !defined(ENABLE_OPENMP) && !defined(ENABLE_TBB)
+#if !defined(ENABLE_THREADS) && !defined(ENABLE_TBB)
   if(nThreads != 1) {
     printf("Error: <nthreads> must be 1 (serial version)\n");
     exit(1);
@@ -409,20 +390,6 @@ int main (int argc, char **argv)
   printf("Size of data: %d\n", numOptions * (sizeof(OptionData) + sizeof(int)));
 
 #ifdef ENABLE_THREADS
-  #ifdef WIN32
-    HANDLE *threads;
-    int *nums;
-    threads = (HANDLE *) malloc (nThreads * sizeof(HANDLE));
-    nums = (int *) malloc (nThreads * sizeof(int));
-
-    for(i=0; i<nThreads; i++) {
-        nums[i] = i;
-        threads[i] = CreateThread(0, 0, bs_thread, &nums[i], 0, 0);
-    }
-    WaitForMultipleObjects(nThreads, threads, TRUE, INFINITE);
-    free(threads);
-    free(nums);
-#else
     int *tids;
     tids = (int *) malloc (nThreads * sizeof(int));
 
@@ -432,15 +399,7 @@ int main (int argc, char **argv)
     }
     WAIT_FOR_END(nThreads);
     free(tids);
-#endif //WIN32
 #else //ENABLE_THREADS
-#ifdef ENABLE_OPENMP
-  {
-        int tid=0;
-        omp_set_num_threads(nThreads);
-        bs_thread(&tid);
-    }
-#else //ENABLE_OPENMP
 #ifdef ENABLE_TBB
   tbb::task_scheduler_init init(nThreads);
 
@@ -451,7 +410,6 @@ int main (int argc, char **argv)
   int tid=0;
   bs_thread(&tid);
 #endif //ENABLE_TBB
-#endif //ENABLE_OPENMP
 #endif //ENABLE_THREADS
 
   //Write prices to output file
