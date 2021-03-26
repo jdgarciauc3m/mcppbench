@@ -263,7 +263,7 @@ int main(int argc, char **argv)
     std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
     exit(1);
   }
-  auto prices = compute_porfolio.compute_prices();
+  auto prices = compute_values(compute_porfolio);
   output << prices.size() << "\n";
   if (!output) {
     std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
