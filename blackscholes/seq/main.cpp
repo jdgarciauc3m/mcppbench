@@ -47,6 +47,7 @@ std::istream & operator>>(std::istream & is, OptionData<Number> & option)
      >> option.OptionType
      >> option.divs
      >> option.DGrefval;
+  return is;
 }
 
 template <typename fptype> fptype *prices;
@@ -229,7 +230,6 @@ int main (int argc, char **argv)
     << "\n";
 
   //serial version
-  int tid=0;
   compute_values<fptype>();
 
   //Write prices to output file
