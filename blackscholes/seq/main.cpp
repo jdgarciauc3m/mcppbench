@@ -35,6 +35,20 @@ struct OptionData {
 template <typename fptype>
 OptionData<fptype> *data;
 
+template<typename Number>
+std::istream & operator>>(std::istream & is, OptionData<Number> & option)
+{
+  is >> option.s
+     >> option.strike
+     >> option.r
+     >> option.divq
+     >> option.v
+     >> option.t
+     >> option.OptionType
+     >> option.divs
+     >> option.DGrefval;
+}
+
 template <typename fptype> fptype *prices;
 int numOptions;
 
@@ -121,11 +135,6 @@ Number BlkSchlsEqEuroNoDiv(Number spot_price,
 }
 
 
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////
-
 template <typename Number>
 void compute_values() {
   for (int j=0; j<NUM_RUNS; j++) {
@@ -183,19 +192,11 @@ int main (int argc, char **argv)
   prices<fptype> = (fptype*)malloc(numOptions*sizeof(fptype));
   for (int loopnum = 0; loopnum < numOptions; ++ loopnum )
   {
-    input >> data<fptype>[loopnum].s
-          >> data<fptype>[loopnum].strike
-          >> data<fptype>[loopnum].r
-          >> data<fptype>[loopnum].divq
-          >> data<fptype>[loopnum].v
-          >> data<fptype>[loopnum].t
-          >> data<fptype>[loopnum].OptionType
-          >> data<fptype>[loopnum].divs
-          >> data<fptype>[loopnum].DGrefval;
-    if(!input) {
-      std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
-      exit(1);
-    }
+    input >> data<fptype>[loopnum];
+  }
+  if(!input) {
+    std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
+    exit(1);
   }
 
   std::cout << "Num of Options: " << numOptions << "\n";
@@ -246,10 +247,10 @@ int main (int argc, char **argv)
   output.setf(std::ios::fixed );
   for(int i=0; i<numOptions; i++) {
     output << prices<fptype>[i] << "\n";
-    if(!output) {
-      std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
-      exit(1);
-    }
+  }
+  if(!output) {
+    std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
+    exit(1);
   }
 
   free(data<fptype>);
