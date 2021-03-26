@@ -34,3 +34,10 @@ add_test(
     ${CMAKE_CURRENT_SOURCE_DIR}/../input/in_10M.txt
     ${CMAKE_CURRENT_BINARY_DIR}/out_10M.txt
 )
+
+add_test(
+    NAME blackscholes-seq-large/regresion
+    COMMAND ${CMAKE_COMMAND} -E compare_files
+    ${CMAKE_CURRENT_BINARY_DIR}/out_10M.txt
+    ${CMAKE_CURRENT_BINARY_DIR}/../seq-orig/out_10M.txt
+)
