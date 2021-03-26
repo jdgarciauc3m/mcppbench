@@ -18,7 +18,7 @@
 
 constexpr int NUM_RUNS = 100;
 
-template <typename fptype>
+template<typename fptype>
 struct OptionData {
   fptype s;          // spot price
   fptype strike;     // strike price
@@ -32,35 +32,13 @@ struct OptionData {
   fptype DGrefval;   // DerivaGem Reference Value
 };
 
-template <typename fptype>
-OptionData<fptype> *data;
-
 template<typename Number>
 std::istream & operator>>(std::istream & is, OptionData<Number> & option)
 {
-  is >> option.s
-     >> option.strike
-     >> option.r
-     >> option.divq
-     >> option.v
-     >> option.t
-     >> option.OptionType
-     >> option.divs
-     >> option.DGrefval;
+  is >> option.s >> option.strike >> option.r >> option.divq >> option.v
+     >> option.t >> option.OptionType >> option.divs >> option.DGrefval;
   return is;
 }
-
-template <typename fptype> fptype *prices;
-int numOptions;
-
-int    * otype;
-template <typename fptype> fptype * sptprice;
-template <typename fptype> fptype * strike;
-template <typename fptype> fptype * rate;
-template <typename fptype> fptype * volatility;
-template <typename fptype> fptype * otime;
-int numError = 0;
-int nThreads;
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -68,12 +46,11 @@ int nThreads;
 ////////////////////////////////////////////////////////////////////////////////
 // Cumulative Normal Distribution Function
 // See Hull, Section 11.8, P.243-244
-template <typename T>
-constexpr T inv_sqrt_2xPI = 0.39894228040143270286;
 
 template<typename Number>
 Number cdf_normal(Number x)
 {
+  constexpr Number inv_sqrt_2xPI = 0.39894228040143270286;
   // Check for negative value of x
   int sign;
   if (x < 0.0) {
@@ -101,7 +78,7 @@ Number cdf_normal(Number x)
   xLocal_1 = xLocal_2 + xLocal_1;
 
   // Compute NPrimeX term common to both four & six decimal accuracy calcs
-  Number xNPrimeofX = std::exp(-0.5f * x * x) * inv_sqrt_2xPI<Number>;
+  Number xNPrimeofX = std::exp(-0.5f * x * x) * inv_sqrt_2xPI;
   Number xLocal = 1.0 - xLocal_1 * xNPrimeofX;
 
   if (sign) {
@@ -112,7 +89,7 @@ Number cdf_normal(Number x)
   }
 }
 
-template <typename Number>
+template<typename Number>
 Number BlkSchlsEqEuroNoDiv(Number spot_price,
     Number strike, Number rate, Number volatility,
     Number time, int option_type)
@@ -127,75 +104,85 @@ Number BlkSchlsEqEuroNoDiv(Number spot_price,
   Number NofXd1 = cdf_normal(d1);
   Number NofXd2 = cdf_normal(d2);
 
-  Number FutureValueX = strike * std::exp(-(rate)*(time));
+  Number FutureValueX = strike * std::exp(-(rate) * (time));
   if (option_type == 0) {
     return spot_price * NofXd1 - FutureValueX * NofXd2;
-  } else {
+  }
+  else {
     return FutureValueX * (1 - NofXd2) - spot_price * (1 - NofXd1);
   }
 }
 
 
-template <typename Number>
-void compute_values() {
-  for (int j=0; j<NUM_RUNS; j++) {
-    for (int i=0; i<numOptions; i++) {
+template<typename Number>
+void compute_values(
+    int n_options,
+    Number *p_sptprice,
+    Number *p_strike,
+    Number *p_rate,
+    Number *p_volatility,
+    Number *p_otime,
+    int *p_otype,
+    Number * p_prices
+)
+{
+  for (int j = 0; j < NUM_RUNS; j++) {
+    for (int i = 0; i < n_options; i++) {
       /* Calling main function to calculate option value based on
        * Black & Scholes's equation.
        */
-      Number price = BlkSchlsEqEuroNoDiv(sptprice<Number>[i], strike<Number>[i],
-          rate<Number>[i], volatility<Number>[i], otime<Number>[i],
-          otype[i]);
-      prices<Number>[i] = price;
+      Number price = BlkSchlsEqEuroNoDiv(p_sptprice[i], p_strike[i],
+          p_rate[i], p_volatility[i], p_otime[i],
+          p_otype[i]);
+      p_prices[i] = price;
     }
   }
 }
 
-int main (int argc, char **argv)
+int main(int argc, char **argv)
 {
   using fptype = float;
 
   std::cout << "PARSEC Benchmark Suite" << std::endl;
 
-  if (argc != 4)
-  {
+  if (argc != 4) {
     printf("Usage:\n\t%s <nthreads> <inputFile> <outputFile>\n", argv[0]);
     exit(1);
   }
-  nThreads = std::stoi(argv[1]);
+  int nThreads = std::stoi(argv[1]);
   std::string inputFile = argv[2];
   std::string outputFile = argv[3];
 
   //Read input data from file
   std::ifstream input{inputFile};
-  if(!input) {
+  if (!input) {
     std::cerr << "ERROR: Unable to open file `" << inputFile << "'.\n";
     exit(1);
   }
+  int numOptions;
   input >> numOptions;
-  if(!input) {
+  if (!input) {
     std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
     exit(1);
   }
-  if(nThreads > numOptions) {
+  if (nThreads > numOptions) {
     std::cerr << "WARNING: Not enough work,"
-      << "reducing number of threads to match number of options.\n";
+              << "reducing number of threads to match number of options.\n";
     nThreads = numOptions;
   }
 
-  if(nThreads != 1) {
+  if (nThreads != 1) {
     std::cerr << "Error: <nthreads> must be 1 (serial version)\n";
     exit(1);
   }
 
   // alloc spaces for the option data
-  data<fptype> = (OptionData<fptype>*)malloc(numOptions*sizeof(OptionData<fptype>));
-  prices<fptype> = (fptype*)malloc(numOptions*sizeof(fptype));
-  for (int loopnum = 0; loopnum < numOptions; ++ loopnum )
-  {
-    input >> data<fptype>[loopnum];
+  auto data = (OptionData<fptype> *) malloc(numOptions * sizeof(OptionData<fptype>));
+  auto prices = (fptype *) malloc(numOptions * sizeof(fptype));
+  for (int loopnum = 0; loopnum < numOptions; ++loopnum) {
+    input >> data[loopnum];
   }
-  if(!input) {
+  if (!input) {
     std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
     exit(1);
   }
@@ -206,55 +193,55 @@ int main (int argc, char **argv)
   constexpr int PAD = 256;
   constexpr int LINESIZE = 64;
 
-  fptype * buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
-  sptprice<fptype> = (fptype *) (((unsigned long long)buffer + PAD) & ~(LINESIZE - 1));
-  strike<fptype> = sptprice<fptype> + numOptions;
-  rate<fptype> = strike<fptype> + numOptions;
-  volatility<fptype> = rate<fptype> + numOptions;
-  otime<fptype> = volatility<fptype> + numOptions;
+  auto buffer = (fptype *) malloc(5 * numOptions * sizeof(fptype) + PAD);
+  auto sptprice = (fptype *) (((unsigned long long) buffer + PAD) & ~(LINESIZE - 1));
+  auto strike = sptprice + numOptions;
+  auto rate = strike + numOptions;
+  auto volatility = rate + numOptions;
+  auto otime = volatility + numOptions;
 
-  int * buffer2 = (int *) malloc(numOptions * sizeof(fptype) + PAD);
-  otype = (int *) (((unsigned long long)buffer2 + PAD) & ~(LINESIZE - 1));
+  auto buffer2 = (int *) malloc(numOptions * sizeof(fptype) + PAD);
+  auto otype = (int *) (((unsigned long long) buffer2 + PAD) & ~(LINESIZE - 1));
 
-  for (int i=0; i<numOptions; i++) {
-    otype[i]      = (data<fptype>[i].OptionType == 'P') ? 1 : 0;
-    sptprice<fptype>[i]   = data<fptype>[i].s;
-    strike<fptype>[i]     = data<fptype>[i].strike;
-    rate<fptype>[i]       = data<fptype>[i].r;
-    volatility<fptype>[i] = data<fptype>[i].v;
-    otime<fptype>[i]      = data<fptype>[i].t;
+  for (int i = 0; i < numOptions; i++) {
+    otype[i] = (data[i].OptionType == 'P') ? 1 : 0;
+    sptprice[i] = data[i].s;
+    strike[i] = data[i].strike;
+    rate[i] = data[i].r;
+    volatility[i] = data[i].v;
+    otime[i] = data[i].t;
   }
 
   std::cout << "Size of data: "
-    << numOptions * (sizeof(OptionData<fptype>) + sizeof(int))
-    << "\n";
+            << numOptions * (sizeof(OptionData<fptype>) + sizeof(int))
+            << "\n";
 
   //serial version
-  compute_values<fptype>();
-
+  compute_values(numOptions, sptprice, strike, rate,
+      volatility, otime, otype, prices);
   //Write prices to output file
   std::ofstream output{outputFile};
-  if(!output) {
+  if (!output) {
     std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
     exit(1);
   }
   output << numOptions << "\n";
-  if(!output) {
+  if (!output) {
     std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
     exit(1);
   }
   output.precision(18);
-  output.setf(std::ios::fixed );
-  for(int i=0; i<numOptions; i++) {
-    output << prices<fptype>[i] << "\n";
+  output.setf(std::ios::fixed);
+  for (int i = 0; i < numOptions; i++) {
+    output << prices[i] << "\n";
   }
-  if(!output) {
+  if (!output) {
     std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
     exit(1);
   }
 
-  free(data<fptype>);
-  free(prices<fptype>);
+  free(data);
+  free(prices);
 
   return 0;
 }
