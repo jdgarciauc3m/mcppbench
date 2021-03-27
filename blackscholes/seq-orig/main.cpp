@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctime>
 
 //Precision to use for calculations
 #define fptype float
@@ -231,6 +232,8 @@ int main (int argc, char **argv)
   int * buffer2;
   int rv;
 
+  clock_t timer1 = clock();
+
   printf("PARSEC Benchmark Suite\n");
   fflush(NULL);
 
@@ -286,6 +289,8 @@ int main (int argc, char **argv)
   printf("Num of Options: %d\n", numOptions);
   printf("Num of Runs: %d\n", NUM_RUNS);
 
+  clock_t timer2 = clock();
+
 #define PAD 256
 #define LINESIZE 64
 
@@ -314,6 +319,8 @@ int main (int argc, char **argv)
   int tid=0;
   bs_thread(&tid);
 
+  clock_t timer3 = clock();
+
   //Write prices to output file
   file = fopen(outputFile, "w");
   if(file == NULL) {
@@ -340,11 +347,17 @@ int main (int argc, char **argv)
     exit(1);
   }
 
+  clock_t timer4 = clock();
+
 #ifdef ERR_CHK
   printf("Num Errors: %d\n", numError);
 #endif
   free(data);
   free(prices);
+
+  printf("Reading time %.6f ms\n", 1000.0 * (timer2 - timer1) / CLOCKS_PER_SEC);
+  printf("Processing time %.6f ms\n", 1000.0 * (timer3 - timer2) / CLOCKS_PER_SEC);
+  printf("Writing time %.6f ms\n", 1000.0 * (timer4 - timer3) / CLOCKS_PER_SEC);
 
   return 0;
 }

@@ -15,9 +15,25 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <utility>
 #include <vector>
+#include <chrono>
 
 constexpr int NUM_RUNS = 100;
+
+class invalid_io {
+public:
+  explicit invalid_io(std::string file_name)
+      : file_name_{std::move(file_name)} {}
+
+  [[nodiscard]] std::string what() const  {
+    return "ERROR: Unable to access file `" + file_name_ + "'.";
+  }
+
+private:
+  std::string file_name_;
+};
+
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -63,7 +79,7 @@ Number cdf_normal(Number x)
   Number xNPrimeofX = expValues;
   xNPrimeofX = xNPrimeofX * inv_sqrt_2xPI;
 
-  Number xLocal =  xLocal_1 * xNPrimeofX;
+  Number xLocal = xLocal_1 * xNPrimeofX;
   xLocal = 1.0 - xLocal;
 
   if (sign) {
@@ -121,17 +137,26 @@ std::istream & operator>>(std::istream & is, option<Number> & option)
   return is;
 }
 
-template<class Number>
+template<typename Name>
+class input_option_portfolio;
+
+template<typename Number>
+std::istream & operator>>(std::istream & is, input_option_portfolio<Number> & pf);
+
+template<typename Number>
 class input_option_portfolio {
 public:
   [[nodiscard]] std::size_t size() const { return options.size(); }
-  [[nodiscard]] std::size_t data_size() const {
+
+  [[nodiscard]] std::size_t data_size() const
+  {
     return options.size() * sizeof(option<Number>);
   }
+
   const option<Number> & operator[](std::size_t i) const { return options[i]; }
 
-  template <typename Num>
-  friend std::istream & operator>>(std::istream & is, input_option_portfolio<Num> & pf);
+  friend std::istream & operator>><>(std::istream & is, input_option_portfolio<Number> & pf);
+
 private:
   std::vector<option<Number>> options;
 };
@@ -139,7 +164,7 @@ private:
 template<typename Number>
 std::istream & operator>>(std::istream & is, input_option_portfolio<Number> & pf)
 {
-  int num_options;
+  int num_options;  // NOLINT
   is >> num_options;
   if (!is) {
     return is;
@@ -148,13 +173,25 @@ std::istream & operator>>(std::istream & is, input_option_portfolio<Number> & pf
   pf.options.reserve(num_options);
 
   for (int i = 0; i < num_options; ++i) {
-    option<Number> o;
+    option<Number> o; // NOLINT
     is >> o;
-    if (!is) { return is; }
+    //if (!is) { return is; }
     pf.options.push_back(o);
   }
   return is;
 }
+
+template<typename Number>
+input_option_portfolio<Number> read_input_portfolio(const std::string & file_name)
+{
+  std::ifstream input{file_name};
+  if (!input) { throw invalid_io{file_name}; }
+  input_option_portfolio<Number> input_portfolio;
+  input >> input_portfolio;
+  if (!input) { throw invalid_io{file_name}; }
+  return input_portfolio;
+}
+
 
 template<class Number>
 class compute_option_portfolio {
@@ -163,13 +200,13 @@ public:
   {
     const std::size_t num_options = pf.size();
     reserve(num_options);
-    for (std::size_t i=0; i<num_options; ++i) {
+    for (std::size_t i = 0; i < num_options; ++i) {
       spot_price.push_back(pf[i].spot_price);
       strike_price.push_back(pf[i].strike_price);
       rate.push_back(pf[i].rate);
       volatility.push_back(pf[i].volatility);
       time.push_back(pf[i].time);
-      option_type.push_back((pf[i].option_type=='P')?1:0);
+      option_type.push_back((pf[i].option_type == 'P') ? 1 : 0);
     }
   }
 
@@ -206,9 +243,7 @@ private:
 };
 
 template<typename Number>
-std::vector<Number> compute_values(
-    compute_option_portfolio<Number> & options)
-{
+std::vector<Number> compute_values(compute_option_portfolio<Number> & options) {
   std::vector<Number> result;
   for (int j = 0; j < NUM_RUNS; j++) {
     result = options.compute_prices();
@@ -216,69 +251,78 @@ std::vector<Number> compute_values(
   return result;
 }
 
-int main(int argc, char **argv)
+template<typename Number>
+void write_prices(const std::string & outputFile, std::vector<Number> & prices) {
+  std::ofstream output{outputFile};
+  if (!output) { throw invalid_io{outputFile}; }
+  output << prices.size() << "\n";
+  if (!output) { throw invalid_io{outputFile}; }
+  output.precision(18);
+  output.setf(std::ios::fixed);
+  for (const auto & p : prices) {
+    output << p << "\n";
+  }
+  if (!output) { throw invalid_io{outputFile}; }
+}
+
+int main(int argc, char *argv[])
+try
 {
+  using namespace std::chrono;
+
+  auto timer1 = high_resolution_clock::now();
+
+  std::ios_base::sync_with_stdio(false);
+
   using fptype = float;
 
   std::cout << "PARSEC Benchmark Suite" << std::endl;
 
   if (argc != 4) {
-    printf("Usage:\n\t%s <nthreads> <inputFile> <outputFile>\n", argv[0]);
-    exit(1);
+    std::cerr << "Usage:\n\t" << argv[0] // NOLINT
+        << " <nthreads> <inputFile> <outputFile>\n";
+    return 1;
   }
-  int nThreads = std::stoi(argv[1]);
+  int nThreads = std::stoi(argv[1]); // NOLINT
   if (nThreads != 1) {
     std::cerr << "Error: <nthreads> must be 1 (serial version)\n";
     exit(1);
   }
-  std::string inputFile = argv[2];
-  std::string outputFile = argv[3];
+  std::string inputFile = argv[2]; // NOLINT
+  std::string outputFile = argv[3]; // NOLINT
 
   //Read input data from file
-  std::ifstream input{inputFile};
-  if (!input) {
-    std::cerr << "ERROR: Unable to open file `" << inputFile << "'.\n";
-    exit(1);
-  }
-
-  input_option_portfolio<fptype> input_portfolio;
-  input >> input_portfolio;
-  if (!input) {
-    std::cerr << "ERROR: Unable to read from file `" << inputFile << "'.\n";
-    exit(1);
-  }
-
+  auto input_portfolio = read_input_portfolio<fptype>(inputFile);
   std::cout << "Num of Options: " << input_portfolio.size() << "\n";
   std::cout << "Num of Runs: " << NUM_RUNS << "\n";
 
-  compute_option_portfolio<fptype> compute_porfolio{input_portfolio};
+  auto timer2 = high_resolution_clock::now();
 
-  std::cout << "Size of data: "
-            << input_portfolio.data_size()
-            << "\n";
+  // Compute portfolio prices
+  compute_option_portfolio<fptype> compute_porfolio{input_portfolio};
+  std::cout << "Size of data: " << input_portfolio.data_size() << "\n";
+  auto prices = compute_values(compute_porfolio);
+
+  auto timer3 = high_resolution_clock::now();
 
   //Write prices to output file
-  std::ofstream output{outputFile};
-  if (!output) {
-    std::cerr << "ERROR: Unable to open file `" << outputFile << "'.\n";
-    exit(1);
-  }
-  auto prices = compute_values(compute_porfolio);
-  output << prices.size() << "\n";
-  if (!output) {
-    std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
-    exit(1);
-  }
-  output.precision(18);
-  output.setf(std::ios::fixed);
-  for (std::size_t i = 0; i < prices.size(); i++) {
-    output << prices[i] << "\n";
-  }
-  if (!output) {
-    std::cerr << "ERROR: Unable to write to file `" << outputFile << "'.\n";
-    exit(1);
-  }
+  write_prices(outputFile, prices);
+
+  auto timer4 = high_resolution_clock::now();
+
+  auto d1 = duration_cast<microseconds>(timer2 - timer1);
+  auto d2 = duration_cast<microseconds>(timer3 - timer2);
+  auto d3 = duration_cast<microseconds>(timer4 - timer2);
+
+  std::cout << "Reading time: " << static_cast<double>(d1.count()) / 1000.0 << "\n";
+  std::cout << "Processing time: " << static_cast<double>(d2.count()) / 1000.0 << "\n";
+  std::cout << "Writing time: " << static_cast<double>(d3.count()) / 1000.0 << "\n";
 
   return 0;
 }
-
+catch (invalid_io & e) {
+  std::cerr << e.what() << "\n";
+}
+catch (...) {
+  std::cerr << "Unexpected exception\n";
+}
