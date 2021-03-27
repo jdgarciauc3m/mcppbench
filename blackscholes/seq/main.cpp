@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 #include <chrono>
+#include <fmt/ostream.h>
 
 constexpr int NUM_RUNS = 100;
 
@@ -255,12 +256,10 @@ template<typename Number>
 void write_prices(const std::string & outputFile, std::vector<Number> & prices) {
   std::ofstream output{outputFile};
   if (!output) { throw invalid_io{outputFile}; }
-  output << prices.size() << "\n";
+  fmt::print(output,"{}\n",prices.size());
   if (!output) { throw invalid_io{outputFile}; }
-  output.precision(18);
-  output.setf(std::ios::fixed);
   for (const auto & p : prices) {
-    output << p << "\n";
+    fmt::print(output,"{:.18f}\n",p);
   }
   if (!output) { throw invalid_io{outputFile}; }
 }

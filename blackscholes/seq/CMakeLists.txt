@@ -13,6 +13,7 @@ add_compile_options(
 
 
 add_executable(blackscholes-seq main.cpp)
+target_link_libraries(blackscholes-seq fmt::fmt)
 
 add_test(
     NAME blackscholes-seq-small
