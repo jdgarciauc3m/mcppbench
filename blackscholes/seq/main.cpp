@@ -9,7 +9,6 @@
 // Reference Source: Options, Futures, and Other Derivatives, 3rd Edition, Prentice
 // Hall, John C. Hull,
 
-#include <cstdio>
 #include <cstdlib>
 #include <cmath>
 #include <string>
@@ -18,7 +17,8 @@
 #include <utility>
 #include <vector>
 #include <chrono>
-#include <fmt/ostream.h>
+#include <fmt/os.h>
+#include <fmt/chrono.h>
 
 constexpr int NUM_RUNS = 100;
 
@@ -253,25 +253,19 @@ std::vector<Number> compute_values(compute_option_portfolio<Number> & options) {
 }
 
 template<typename Number>
-void write_prices(const std::string & outputFile, std::vector<Number> & prices) {
-  std::ofstream output{outputFile};
-  if (!output) { throw invalid_io{outputFile}; }
-  fmt::print(output,"{}\n",prices.size());
-  if (!output) { throw invalid_io{outputFile}; }
+void write_prices(const std::string & outputFile,
+    const std::vector<Number> & prices) {
+  auto output = fmt::output_file(outputFile);
+  output.print("{}\n",prices.size());
   for (const auto & p : prices) {
-    fmt::print(output,"{:.18f}\n",p);
+    output.print("{:.18f}\n",p);
   }
-  if (!output) { throw invalid_io{outputFile}; }
 }
 
 int main(int argc, char *argv[])
 try
 {
   using namespace std::chrono;
-
-  auto timer1 = high_resolution_clock::now();
-
-  std::ios_base::sync_with_stdio(false);
 
   using fptype = float;
 
@@ -289,6 +283,8 @@ try
   }
   std::string inputFile = argv[2]; // NOLINT
   std::string outputFile = argv[3]; // NOLINT
+
+  auto timer1 = high_resolution_clock::now();
 
   //Read input data from file
   auto input_portfolio = read_input_portfolio<fptype>(inputFile);
@@ -311,11 +307,13 @@ try
 
   auto d1 = duration_cast<microseconds>(timer2 - timer1);
   auto d2 = duration_cast<microseconds>(timer3 - timer2);
-  auto d3 = duration_cast<microseconds>(timer4 - timer2);
+  auto d3 = duration_cast<microseconds>(timer4 - timer3);
+  auto d4 = duration_cast<microseconds>(timer4 - timer1);
 
-  std::cout << "Reading time: " << static_cast<double>(d1.count()) / 1000.0 << "\n";
-  std::cout << "Processing time: " << static_cast<double>(d2.count()) / 1000.0 << "\n";
-  std::cout << "Writing time: " << static_cast<double>(d3.count()) / 1000.0 << "\n";
+  fmt::print("Reading time: {:%H:%M:%S} + {} ms\n", d1, (d1 % 1s).count()/1000.0);
+  fmt::print("Processing time: {:%H:%M:%S} +{} ms\n", d2, (d2 % 1s).count()/1000.0);
+  fmt::print("Writing time: {:%H:%M:%S} + {} ms\n", d3, (d3 % 1s).count()/1000.0);
+  fmt::print("Total time: {:%H:%M:%S} +{} ms\n", d4, (d4 % 1s).count()/1000.0);
 
   return 0;
 }
