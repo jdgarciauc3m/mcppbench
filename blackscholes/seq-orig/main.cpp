@@ -232,8 +232,6 @@ int main (int argc, char **argv)
   int * buffer2;
   int rv;
 
-  clock_t timer1 = clock();
-
   printf("PARSEC Benchmark Suite\n");
   fflush(NULL);
 
@@ -245,6 +243,8 @@ int main (int argc, char **argv)
   nThreads = atoi(argv[1]);
   char *inputFile = argv[2];
   char *outputFile = argv[3];
+
+  clock_t timer1 = clock();
 
   //Read input data from file
   file = fopen(inputFile, "r");
@@ -355,9 +355,10 @@ int main (int argc, char **argv)
   free(data);
   free(prices);
 
-  printf("Reading time %.6f ms\n", 1000.0 * (timer2 - timer1) / CLOCKS_PER_SEC);
-  printf("Processing time %.6f ms\n", 1000.0 * (timer3 - timer2) / CLOCKS_PER_SEC);
-  printf("Writing time %.6f ms\n", 1000.0 * (timer4 - timer3) / CLOCKS_PER_SEC);
+  printf("Reading time %.3f ms\n", 1000.0 * (timer2 - timer1) / CLOCKS_PER_SEC);
+  printf("Processing time %.3f ms\n", 1000.0 * (timer3 - timer2) / CLOCKS_PER_SEC);
+  printf("Writing time %.3f ms\n", 1000.0 * (timer4 - timer3) / CLOCKS_PER_SEC);
+  printf("Writing time %.3f ms\n", 1000.0 * (timer4 - timer1) / CLOCKS_PER_SEC);
 
   return 0;
 }
