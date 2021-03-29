@@ -19,6 +19,7 @@
 #include <chrono>
 #include <fmt/os.h>
 #include <fmt/chrono.h>
+#include <fmt/ostream.h>
 
 constexpr int NUM_RUNS = 100;
 
@@ -27,7 +28,8 @@ public:
   explicit invalid_io(std::string file_name)
       : file_name_{std::move(file_name)} {}
 
-  [[nodiscard]] std::string what() const  {
+  [[nodiscard]] std::string what() const
+  {
     return "ERROR: Unable to access file `" + file_name_ + "'.";
   }
 
@@ -35,6 +37,34 @@ private:
   std::string file_name_;
 };
 
+class invalid_file_io {
+};
+
+template<typename T>
+class dynamic_array {
+public:
+
+  dynamic_array() = default;
+
+  explicit dynamic_array(std::size_t n)
+      :
+      size_{n}, buffer_{new T[n]} {}
+
+  [[nodiscard]] std::size_t size() const { return size_; }
+
+  T & operator[](std::size_t i) { return buffer_[i]; }
+
+  const T & operator[](std::size_t i) const { return buffer_[i]; }
+
+  auto begin() { return buffer_.get(); }
+  auto begin() const { return buffer_.get(); }
+  auto end() { return buffer_.get() +  size_; }
+  auto end() const { return buffer_.get() +  size_; }
+
+private:
+  std::size_t size_ = 0;
+  std::unique_ptr<T[]> buffer_ = nullptr;
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -127,15 +157,19 @@ struct option {
   char option_type;   // Option type.  "P"=PUT, "C"=CALL
   fptype divs;       // dividend vals (not used in this test)
   fptype DGrefval;   // DerivaGem Reference Value
+
+  void read(std::FILE *file);
 };
 
 template<typename Number>
-std::istream & operator>>(std::istream & is, option<Number> & option)
+void option<Number>::read(FILE *file)
 {
-  is >> option.spot_price >> option.strike_price >> option.rate
-     >> option.dividend_rate >> option.volatility
-     >> option.time >> option.option_type >> option.divs >> option.DGrefval;
-  return is;
+  int ret = fscanf(file, "%f %f %f %f %f %f %c %f %f",
+      &spot_price, &strike_price, &rate, &dividend_rate, &volatility, &time,
+      &option_type, &divs, &DGrefval);
+  if (ret != 9) {
+    throw invalid_file_io{};
+  }
 }
 
 template<typename Name>
@@ -147,105 +181,95 @@ std::istream & operator>>(std::istream & is, input_option_portfolio<Number> & pf
 template<typename Number>
 class input_option_portfolio {
 public:
-  [[nodiscard]] std::size_t size() const { return options.size(); }
+  [[nodiscard]] std::size_t size() const { return size_; }
 
-  [[nodiscard]] std::size_t data_size() const
-  {
-    return options.size() * sizeof(option<Number>);
+  [[nodiscard]] std::size_t data_size() const {
+    return size_ * (sizeof(Number) + sizeof(option<Number>));
   }
 
-  const option<Number> & operator[](std::size_t i) const { return options[i]; }
+  const option<Number> & operator[](std::size_t i) const { return options_[i]; }
 
-  friend std::istream & operator>><>(std::istream & is, input_option_portfolio<Number> & pf);
+  void read(FILE *file);
 
 private:
-  std::vector<option<Number>> options;
+  std::size_t size_;
+  std::unique_ptr<option<Number>[]> options_;
 };
 
 template<typename Number>
-std::istream & operator>>(std::istream & is, input_option_portfolio<Number> & pf)
+void input_option_portfolio<Number>::read(FILE *file)
 {
-  int num_options;  // NOLINT
-  is >> num_options;
-  if (!is) {
-    return is;
+  int ret = fscanf(file, "%lu", &size_);
+  if (ret != 1) {
+    throw invalid_file_io{};
   }
-
-  pf.options.reserve(num_options);
-
-  for (int i = 0; i < num_options; ++i) {
-    option<Number> o; // NOLINT
-    is >> o;
-    //if (!is) { return is; }
-    pf.options.push_back(o);
-  }
-  return is;
+  options_.reset(new option<Number>[size_]);
+  std::for_each_n(options_.get(), size_, [&](auto & o) { o.read(file); });
 }
 
 template<typename Number>
-input_option_portfolio<Number> read_input_portfolio(const std::string & file_name)
+input_option_portfolio<Number> read_input_portfolio_f(const std::string & file_name)
 {
-  std::ifstream input{file_name};
-  if (!input) { throw invalid_io{file_name}; }
-  input_option_portfolio<Number> input_portfolio;
-  input >> input_portfolio;
-  if (!input) { throw invalid_io{file_name}; }
-  return input_portfolio;
+  try {
+    FILE *file = fopen(file_name.c_str(), "r");
+    if (!file) { throw invalid_io{file_name}; }
+    input_option_portfolio<Number> input_portfolio;
+    input_portfolio.read(file);
+    return input_portfolio;
+  }
+  catch (invalid_file_io) {
+    throw invalid_io{file_name};
+  }
 }
-
 
 template<class Number>
 class compute_option_portfolio {
 public:
-  explicit compute_option_portfolio(const input_option_portfolio<Number> & pf)
-  {
-    const std::size_t num_options = pf.size();
-    reserve(num_options);
+  explicit compute_option_portfolio(const input_option_portfolio<Number> & pf) :
+    num_options{pf.size()},
+    spot_price{new Number[num_options]},
+    strike_price{new Number[num_options]},
+    rate{new Number[num_options]},
+    volatility{new Number[num_options]},
+    time{new Number[num_options]},
+    option_type{new std::int8_t[num_options]}
+{
     for (std::size_t i = 0; i < num_options; ++i) {
-      spot_price.push_back(pf[i].spot_price);
-      strike_price.push_back(pf[i].strike_price);
-      rate.push_back(pf[i].rate);
-      volatility.push_back(pf[i].volatility);
-      time.push_back(pf[i].time);
-      option_type.push_back((pf[i].option_type == 'P') ? 1 : 0);
+      spot_price[i] = pf[i].spot_price;
+      strike_price[i] = pf[i].strike_price;
+      rate[i] = pf[i].rate;
+      volatility[i] = pf[i].volatility;
+      time[i] = pf[i].time;
+      option_type[i] = pf[i].option_type == 'P' ? 1 : 0;
     }
   }
 
-  [[nodiscard]] std::vector<Number> compute_prices() const
+  [[nodiscard]] dynamic_array<Number> compute_prices() const
   {
-    const std::size_t size = spot_price.size();
-    std::vector<Number> result;
-    result.reserve(size);
-    for (std::size_t i = 0; i < size; ++i) {
-      result.push_back(BlkSchlsEqEuroNoDiv(spot_price[i], strike_price[i],
-          rate[i], volatility[i], time[i], option_type[i]));
+    dynamic_array<Number> result{num_options};
+    for (std::size_t i = 0; i < num_options; ++i) {
+      result[i] = BlkSchlsEqEuroNoDiv(spot_price[i], strike_price[i],
+          rate[i], volatility[i], time[i], option_type[i]);
     }
     return result;
   }
 
 private:
-  void reserve(std::size_t n)
-  {
-    spot_price.reserve(n);
-    strike_price.reserve(n);
-    rate.reserve(n);
-    volatility.reserve(n);
-    time.reserve(n);
-    option_type.reserve(n);
-  }
 
 private:
-  std::vector<Number> spot_price;
-  std::vector<Number> strike_price;
-  std::vector<Number> rate;
-  std::vector<Number> volatility;
-  std::vector<Number> time;
-  std::vector<int8_t> option_type;
+  std::size_t num_options;
+  std::unique_ptr<Number[]> spot_price;
+  std::unique_ptr<Number[]> strike_price;
+  std::unique_ptr<Number[]> rate;
+  std::unique_ptr<Number[]> volatility;
+  std::unique_ptr<Number[]> time;
+  std::unique_ptr<int8_t[]> option_type;
 };
 
 template<typename Number>
-std::vector<Number> compute_values(compute_option_portfolio<Number> & options) {
-  std::vector<Number> result;
+dynamic_array<Number> compute_values(compute_option_portfolio<Number> & options)
+{
+  dynamic_array<Number> result;
   for (int j = 0; j < NUM_RUNS; j++) {
     result = options.compute_prices();
   }
@@ -254,11 +278,12 @@ std::vector<Number> compute_values(compute_option_portfolio<Number> & options) {
 
 template<typename Number>
 void write_prices(const std::string & outputFile,
-    const std::vector<Number> & prices) {
+    const dynamic_array<Number> & prices)
+{
   auto output = fmt::output_file(outputFile);
-  output.print("{}\n",prices.size());
+  output.print("{}\n", prices.size());
   for (const auto & p : prices) {
-    output.print("{:.18f}\n",p);
+    output.print("{:.18f}\n", p);
   }
 }
 
@@ -269,16 +294,15 @@ try
 
   using fptype = float;
 
-  std::cout << "PARSEC Benchmark Suite" << std::endl;
+  fmt::print("PARSEC Benchmark Suite\n");
 
   if (argc != 4) {
-    std::cerr << "Usage:\n\t" << argv[0] // NOLINT
-        << " <nthreads> <inputFile> <outputFile>\n";
+    fmt::print(std::cerr, "Usage:\n\t{} <nthreads> <inputFile> <outputFile>\n", argv[0]);
     return 1;
   }
   int nThreads = std::stoi(argv[1]); // NOLINT
   if (nThreads != 1) {
-    std::cerr << "Error: <nthreads> must be 1 (serial version)\n";
+    fmt::print(std::cerr, "Error: <nthreads> must be 1 (serial version)\n");
     exit(1);
   }
   std::string inputFile = argv[2]; // NOLINT
@@ -287,15 +311,15 @@ try
   auto timer1 = high_resolution_clock::now();
 
   //Read input data from file
-  auto input_portfolio = read_input_portfolio<fptype>(inputFile);
-  std::cout << "Num of Options: " << input_portfolio.size() << "\n";
-  std::cout << "Num of Runs: " << NUM_RUNS << "\n";
+  auto input_portfolio = read_input_portfolio_f<fptype>(inputFile);
+  fmt::print("Num of Options: {}\n", input_portfolio.size());
+  fmt::print("Num of Runs: {}\n", NUM_RUNS);
 
   auto timer2 = high_resolution_clock::now();
 
   // Compute portfolio prices
   compute_option_portfolio<fptype> compute_porfolio{input_portfolio};
-  std::cout << "Size of data: " << input_portfolio.data_size() << "\n";
+  fmt::print("Size of data: {}\n", input_portfolio.data_size());
   auto prices = compute_values(compute_porfolio);
 
   auto timer3 = high_resolution_clock::now();
@@ -310,16 +334,16 @@ try
   auto d3 = duration_cast<microseconds>(timer4 - timer3);
   auto d4 = duration_cast<microseconds>(timer4 - timer1);
 
-  fmt::print("Reading time: {:%H:%M:%S} + {} ms\n", d1, (d1 % 1s).count()/1000.0);
-  fmt::print("Processing time: {:%H:%M:%S} +{} ms\n", d2, (d2 % 1s).count()/1000.0);
-  fmt::print("Writing time: {:%H:%M:%S} + {} ms\n", d3, (d3 % 1s).count()/1000.0);
-  fmt::print("Total time: {:%H:%M:%S} +{} ms\n", d4, (d4 % 1s).count()/1000.0);
+  fmt::print("Reading time: {} ms\n", d1.count() / 1000.0);
+  fmt::print("Processing time: {} ms\n", d2.count() / 1000.0);
+  fmt::print("Writing time: {} ms\n", d3.count() / 1000.0);
+  fmt::print("Total time: {} ms\n", d4.count() / 1000.0);
 
   return 0;
 }
 catch (invalid_io & e) {
-  std::cerr << e.what() << "\n";
+  fmt::print(std::cerr,"{}\n", e.what());
 }
 catch (...) {
-  std::cerr << "Unexpected exception\n";
+  fmt::print(std::cerr,"Unexpected exception\n");
 }
